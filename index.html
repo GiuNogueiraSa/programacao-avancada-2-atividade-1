@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Tradutor de #hashtags e @menções</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 0 16px;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    button {
+      margin: 10px 0;
+      padding: 8px 16px;
+      font-size: 16px;
+    }
+    #saida {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 40px;
+      white-space: pre-wrap;
+    }
+    #contador {
+      margin-top: 8px;
+      color: #555;
+    }
+    .erro {
+      background: #fdd;
+      color: #900;
+    }
+    .ajuda {
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tradutor de #hashtags e @menções</h1>
+
+  <p class="ajuda">
+    Use <code>@usuario</code> para menções, <code>#categoria:valor</code> para emojis
+    e <code>$texto$</code> para deixar um trecho em <b>negrito</b>.
+  </p>
+
+  <textarea id="entrada" placeholder="Digite seu texto aqui"></textarea>
+  <br>
+  <button id="botao">Traduzir</button>
+
+  <h3>Resultado</h3>
+  <div id="saida"></div>
+  <div id="contador"></div>
+
+  <h3>Erros encontrados</h3>
+  <ul id="erros"></ul>
+
+  <script>
+    const emojis = {
+      "frutas:banana": "🍌",
+      "frutas:uva": "🍇",
+      "frutas:maçã": "🍎",
+      "frutas:laranja": "🍊",
+      "frutas:morango": "🍓",
+      "frutas:abacaxi": "🍍",
+      "animais:gato": "🐱",
+      "animais:cachorro": "🐶",
+      "animais:leão": "🦁",
+      "comidas:pizza": "🍕",
+      "comidas:hamburguer": "🍔",
+      "comidas:sorvete": "🍦"
+    };
+
+    const pessoas = {
+      "joao": "João da Silva",
+      "maria": "Maria Oliveira",
+      "ana": "Ana Souza",
+      "pedro": "Pedro Santos",
+      "giulia": "Giulia",
+      "carla": "Carla Mendes",
+      "lucas": "Lucas Ferreira",
+      "maria.silva": "Maria da Silva"
+    };
+
+    function marcarErro(trecho) {
+      return '<span class="erro">' + trecho + "</span>";
+    }
+
+    function substituirMencoes(texto, erros, contagem) {
+      const padrao = /(?<![\wÀ-ÿ.])@([\wÀ-ÿ]+(?:\.[\wÀ-ÿ]+)*)/g;
+
+      return texto.replace(padrao, function (trecho, usuario) {
+        const chave = usuario.toLowerCase();
+
+        if (!Object.hasOwn(pessoas, chave)) {
+          erros.push("Menção desconhecida: " + trecho);
+          return marcarErro(trecho);
+        }
+
+        contagem.mencoes++;
+        return pessoas[chave];
+      });
+    }
+
+    function substituirHashtags(texto, erros, contagem) {
+      const padrao = /#([\wÀ-ÿ]+)(?::([\wÀ-ÿ]+))?/g;
+
+      return texto.replace(padrao, function (trecho, categoria, valor) {
+        if (valor === undefined) {
+          erros.push(
+            "Hashtag em formato inválido: " + trecho + " (use #categoria:valor)"
+          );
+          return marcarErro(trecho);
+        }
+
+        const chave = (categoria + ":" + valor).toLowerCase();
+
+        if (!Object.hasOwn(emojis, chave)) {
+          erros.push("Hashtag desconhecida: " + trecho);
+          return marcarErro(trecho);
+        }
+
+        contagem.hashtags++;
+        return emojis[chave];
+      });
+    }
+
+    function substituirNegrito(texto, contagem) {
+      const padrao = /\$([^$\n]+)\$/g;
+
+      return texto.replace(padrao, function (trecho, conteudo) {
+        contagem.negritos++;
+        return "<strong>" + conteudo + "</strong>";
+      });
+    }
+
+    function escaparHtml(texto) {
+      return texto
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function traduzir() {
+      const erros = [];
+      const contagem = { mencoes: 0, hashtags: 0, negritos: 0 };
+
+      let texto = escaparHtml(document.getElementById("entrada").value);
+
+      texto = substituirMencoes(texto, erros, contagem);
+      texto = substituirHashtags(texto, erros, contagem);
+      texto = substituirNegrito(texto, contagem);
+
+      document.getElementById("saida").innerHTML = texto;
+
+      document.getElementById("contador").textContent =
+        "Menções traduzidas: " + contagem.mencoes +
+        " | Hashtags traduzidas: " + contagem.hashtags +
+        " | Trechos em negrito: " + contagem.negritos;
+
+      const lista = document.getElementById("erros");
+      lista.innerHTML = "";
+
+      if (erros.length === 0) {
+        lista.innerHTML = "<li>Nenhum erro encontrado.</li>";
+      }
+
+      for (const mensagem of erros) {
+        const item = document.createElement("li");
+        item.className = "erro";
+        item.textContent = mensagem;
+        lista.appendChild(item);
+      }
+    }
+
+    document.getElementById("botao").addEventListener("click", traduzir);
+  </script>
+</body>
+</html>
